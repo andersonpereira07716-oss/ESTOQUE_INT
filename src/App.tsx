@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 interface ProductBatch {
   id: string;
@@ -24,28 +24,24 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'nfe'>('dashboard');
   const [xmlInput, setXmlInput] = useState<string>('');
   const [batches, setBatches] = useState<ProductBatch[]>(initialBatches);
-  
-  // FUNCIONALIDADE 1: Filtro Rápido por Status
   const [filter, setFilter] = useState<'all' | 'critical' | 'alert' | 'healthy'>('all');
 
-  // FUNCIONALIDADE 2: Modal de Cadastro Manual
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    category: 'Mercearia',
-    price: '',
-    stock: '',
-    minStock: '',
-    expiryDate: '',
-  });
-
-  // FUNCIONALIDADE 3: Modal da Decisão da IA
+  const [newProduct, setNewProduct] = useState({ name: '', category: 'Mercearia', price: '', stock: '', minStock: '', expiryDate: '' });
   const [selectedAiItem, setSelectedAiItem] = useState<ProductBatch | null>(null);
 
-  const filteredBatches = batches.filter(item => {
-    if (filter === 'all') return true;
-    return item.status === filter;
-  });
+  // Cálculos memoizados para altíssima performance de renderização
+  const filteredBatches = useMemo(() => {
+    if (filter === 'all') return batches;
+    return batches.filter(item => item.status === filter);
+  }, [batches, filter]);
+
+  const kpis = useMemo(() => {
+    const ruptureCount = batches.filter(b => b.stock < b.minStock).length;
+    const criticalLotes = batches.filter(b => b.status === 'critical').length;
+    const totalCmv = batches.reduce((acc, b) => acc + (b.price * b.stock), 0);
+    return { ruptureCount, criticalLotes, totalCmv };
+  }, [batches]);
 
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +49,6 @@ export default function App() {
 
     const stockNum = Number(newProduct.stock);
     const minNum = Number(newProduct.minStock) || 10;
-    
-    // Determina status automaticamente
     let status: 'critical' | 'alert' | 'healthy' = 'healthy';
     if (stockNum < minNum) status = 'critical';
 
@@ -69,7 +63,7 @@ export default function App() {
       status: status
     };
 
-    setBatches([createdItem, ...batches]);
+    setBatches(prev => [createdItem, ...prev]);
     setIsModalOpen(false);
     setNewProduct({ name: '', category: 'Mercearia', price: '', stock: '', minStock: '', expiryDate: '' });
   };
@@ -77,7 +71,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#090d16' }}>
       
-      {/* Topbar / Header Corporativo */}
+      {/* Topbar / Header */}
       <header style={{
         backgroundColor: '#111726',
         borderBottom: '1px solid #1f293d',
@@ -90,53 +84,28 @@ export default function App() {
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            backgroundColor: '#10b981',
-            boxShadow: '0 0 10px #10b981'
-          }}></div>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '-0.5px' }}>
             ESTOQUE<span style={{ color: '#10b981' }}>INTELIGENTE</span>
           </h1>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          style={{
-            backgroundColor: '#10b981',
-            color: '#090d16',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
+          style={{ backgroundColor: '#10b981', color: '#090d16', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
         >
           + Novo Item
         </button>
       </header>
 
-      {/* Navegação Secundária por Abas */}
-      <nav style={{
-        backgroundColor: '#0d1320',
-        borderBottom: '1px solid #1f293d',
-        display: 'flex',
-        padding: '0 16px',
-        gap: '20px'
-      }}>
+      {/* Navegação por Abas */}
+      <nav style={{ backgroundColor: '#0d1320', borderBottom: '1px solid #1f293d', display: 'flex', padding: '0 16px', gap: '20px' }}>
         <button 
           onClick={() => setActiveTab('dashboard')}
           style={{
-            background: 'none',
-            border: 'none',
+            background: 'none', border: 'none',
             color: activeTab === 'dashboard' ? '#10b981' : '#9ca3af',
             borderBottom: activeTab === 'dashboard' ? '2px solid #10b981' : '2px solid transparent',
-            padding: '12px 0',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer'
+            padding: '12px 0', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
           }}
         >
           📊 Visão Geral
@@ -144,14 +113,10 @@ export default function App() {
         <button 
           onClick={() => setActiveTab('nfe')}
           style={{
-            background: 'none',
-            border: 'none',
+            background: 'none', border: 'none',
             color: activeTab === 'nfe' ? '#10b981' : '#9ca3af',
             borderBottom: activeTab === 'nfe' ? '2px solid #10b981' : '2px solid transparent',
-            padding: '12px 0',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer'
+            padding: '12px 0', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
           }}
         >
           📥 Importar NF-e
@@ -162,34 +127,19 @@ export default function App() {
       <main style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', width: '100%', flex: 1 }}>
         
         {/* CARDS DE KPI */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '12px',
-          marginBottom: '20px'
-        }}>
-          <KpiCard title="Risco de Ruptura" value={`${batches.filter(b => b.stock < b.minStock).length} Itens`} icon="⚠️" border="#ef4444" detail="Abaixo do mínimo" />
-          <KpiCard title="Vencendo (7d)" value={`${batches.filter(b => b.status === 'critical').length} Lotes`} icon="🍎" border="#f59e0b" detail="Remarcação imediata" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          <KpiCard title="Risco de Ruptura" value={`${kpis.ruptureCount} Itens`} icon="⚠️" border="#ef4444" detail="Abaixo do mínimo" />
+          <KpiCard title="Vencendo (7d)" value={`${kpis.criticalLotes} Lotes`} icon="🍎" border="#f59e0b" detail="Remarcação imediata" />
           <KpiCard title="Valor em Risco" value="R$ 1.850" icon="💰" border="#f59e0b" detail="Prejuízo evitado" />
-          <KpiCard title="CMV em Estoque" value={`R$ ${batches.reduce((acc, b) => acc + (b.price * b.stock), 0).toFixed(0)}`} icon="📦" border="#10b981" detail="Total estocado" />
+          <KpiCard title="CMV em Estoque" value={`R$ ${kpis.totalCmv.toFixed(0)}`} icon="📦" border="#10b981" detail="Total estocado" />
         </div>
 
         {/* ÁREA DE IMPORTAÇÃO DE NOTA FISCAL */}
         {(activeTab === 'nfe' || activeTab === 'dashboard') && (
-          <section style={{
-            backgroundColor: '#111726',
-            borderRadius: '12px',
-            padding: '16px',
-            border: '1px solid #1f293d',
-            marginBottom: '20px'
-          }}>
+          <section style={{ backgroundColor: '#111726', borderRadius: '12px', padding: '16px', border: '1px solid #1f293d', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <h2 style={{ fontSize: '15px', color: '#ffffff', fontWeight: 600 }}>
-                ⚡ Importador de NF-e (XML / Chave DANFE)
-              </h2>
-              <span style={{ fontSize: '10px', background: '#10b98120', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
-                IA PARSER ACTIVO
-              </span>
+              <h2 style={{ fontSize: '15px', color: '#ffffff', fontWeight: 600 }}>⚡ Importador de NF-e (XML / Chave DANFE)</h2>
+              <span style={{ fontSize: '10px', background: '#10b98120', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>IA PARSER ACTIVO</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <textarea 
@@ -197,29 +147,11 @@ export default function App() {
                 placeholder="Cole o XML da NF-e aqui..."
                 value={xmlInput}
                 onChange={(e) => setXmlInput(e.target.value)}
-                style={{
-                  backgroundColor: '#090d16',
-                  border: '1px solid #1f293d',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  color: '#e5e7eb',
-                  fontSize: '12px',
-                  fontFamily: 'monospace',
-                  outline: 'none'
-                }}
+                style={{ backgroundColor: '#090d16', border: '1px solid #1f293d', borderRadius: '8px', padding: '10px', color: '#e5e7eb', fontSize: '12px', fontFamily: 'monospace', outline: 'none' }}
               />
               <button 
-                onClick={() => alert('Nota processada com sucesso!')}
-                style={{
-                  backgroundColor: '#10b981',
-                  color: '#090d16',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
+                onClick={() => alert('Nota processada instantaneamente!')}
+                style={{ backgroundColor: '#10b981', color: '#090d16', border: 'none', borderRadius: '8px', padding: '10px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
               >
                 Processar Entrada de Estoque
               </button>
@@ -227,22 +159,14 @@ export default function App() {
           </section>
         )}
 
-        {/* TABELA PREDITIVA COM FILTROS (FUNCIONALIDADE 1) */}
-        <section style={{
-          backgroundColor: '#111726',
-          borderRadius: '12px',
-          border: '1px solid #1f293d',
-          overflow: 'hidden'
-        }}>
+        {/* TABELA PREDITIVA COM FILTROS */}
+        <section style={{ backgroundColor: '#111726', borderRadius: '12px', border: '1px solid #1f293d', overflow: 'hidden' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid #1f293d', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '15px', color: '#ffffff', fontWeight: 600 }}>
-                📋 Gestão Preditiva de Validade
-              </h2>
+              <h2 style={{ fontSize: '15px', color: '#ffffff', fontWeight: 600 }}>📋 Gestão Preditiva de Validade</h2>
               <span style={{ fontSize: '11px', color: '#9ca3af' }}>{filteredBatches.length} itens exibidos</span>
             </div>
 
-            {/* BOTÕES DE FILTRO */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <FilterButton active={filter === 'all'} onClick={() => setFilter('all')} label="Todos" color="#9ca3af" />
               <FilterButton active={filter === 'critical'} onClick={() => setFilter('critical')} label="Críticos" color="#ef4444" />
@@ -278,16 +202,11 @@ export default function App() {
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <button 
-                        onClick={() => setSelectedAiItem(item)} // FUNCIONALIDADE 3: ABRIR MODAL DA IA
+                        onClick={() => setSelectedAiItem(item)}
                         style={{
                           backgroundColor: item.stock < item.minStock ? '#ef4444' : item.status === 'critical' ? '#ef4444' : item.status === 'alert' ? '#f59e0b' : '#10b981',
                           color: item.status === 'healthy' && item.stock >= item.minStock ? '#090d16' : '#ffffff',
-                          border: 'none',
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          fontWeight: 'bold',
-                          fontSize: '11px',
-                          cursor: 'pointer'
+                          border: 'none', padding: '6px 10px', borderRadius: '6px', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
                         }}
                       >
                         {item.stock < item.minStock ? '🚨 Repor' : item.status === 'critical' ? '⚡ Desconto' : item.status === 'alert' ? '🏷️ Promo' : '✅ Ok'}
@@ -302,67 +221,19 @@ export default function App() {
 
       </main>
 
-      {/* MODAL 1: CADASTRO MANUAL DE PRODUTO (FUNCIONALIDADE 2) */}
+      {/* MODAIS */}
       {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px',
-          zIndex: 100
-        }}>
-          <div style={{
-            backgroundColor: '#111726',
-            border: '1px solid #1f293d',
-            borderRadius: '12px',
-            padding: '20px',
-            width: '100%',
-            maxWidth: '400px'
-          }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
+          <div style={{ backgroundColor: '#111726', border: '1px solid #1f293d', borderRadius: '12px', padding: '20px', width: '100%', maxWidth: '400px' }}>
             <h3 style={{ color: '#ffffff', marginBottom: '16px', fontSize: '16px' }}>Cadastrar Novo Produto</h3>
             <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input 
-                placeholder="Nome do Produto" 
-                value={newProduct.name}
-                onChange={e => setNewProduct({...newProduct, name: e.target.value})}
-                style={inputStyle}
-                required
-              />
-              <input 
-                placeholder="Preço (R$)" 
-                type="number"
-                step="0.01"
-                value={newProduct.price}
-                onChange={e => setNewProduct({...newProduct, price: e.target.value})}
-                style={inputStyle}
-              />
+              <input placeholder="Nome do Produto" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} style={inputStyle} required />
+              <input placeholder="Preço (R$)" type="number" step="0.01" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} style={inputStyle} />
               <div style={{ display: 'flex', gap: '10px' }}>
-                <input 
-                  placeholder="Estoque Atual" 
-                  type="number"
-                  value={newProduct.stock}
-                  onChange={e => setNewProduct({...newProduct, stock: e.target.value})}
-                  style={inputStyle}
-                  required
-                />
-                <input 
-                  placeholder="Estoque Mínimo" 
-                  type="number"
-                  value={newProduct.minStock}
-                  onChange={e => setNewProduct({...newProduct, minStock: e.target.value})}
-                  style={inputStyle}
-                />
+                <input placeholder="Estoque Atual" type="number" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} style={inputStyle} required />
+                <input placeholder="Estoque Mínimo" type="number" value={newProduct.minStock} onChange={e => setNewProduct({...newProduct, minStock: e.target.value})} style={inputStyle} />
               </div>
-              <input 
-                placeholder="Data de Validade (AAAA-MM-DD)" 
-                type="date"
-                value={newProduct.expiryDate}
-                onChange={e => setNewProduct({...newProduct, expiryDate: e.target.value})}
-                style={inputStyle}
-              />
+              <input placeholder="Data de Validade (AAAA-MM-DD)" type="date" value={newProduct.expiryDate} onChange={e => setNewProduct({...newProduct, expiryDate: e.target.value})} style={inputStyle} />
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ ...btnStyle, backgroundColor: '#1f293d', color: '#fff' }}>Cancelar</button>
                 <button type="submit" style={{ ...btnStyle, backgroundColor: '#10b981', color: '#090d16' }}>Salvar Produto</button>
@@ -372,35 +243,14 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL 2: SUGESTÃO DE DECISÃO DA IA (FUNCIONALIDADE 3) */}
       {selectedAiItem && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px',
-          zIndex: 100
-        }}>
-          <div style={{
-            backgroundColor: '#111726',
-            border: '1px solid #10b981',
-            borderRadius: '12px',
-            padding: '20px',
-            width: '100%',
-            maxWidth: '400px'
-          }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
+          <div style={{ backgroundColor: '#111726', border: '1px solid #10b981', borderRadius: '12px', padding: '20px', width: '100%', maxWidth: '400px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <span style={{ fontSize: '20px' }}>🤖</span>
               <h3 style={{ color: '#10b981', fontSize: '16px' }}>Recomendação de Precificação IA</h3>
             </div>
-            
-            <p style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
-              {selectedAiItem.name}
-            </p>
-            
+            <p style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{selectedAiItem.name}</p>
             <div style={{ backgroundColor: '#090d16', padding: '12px', borderRadius: '8px', border: '1px solid #1f293d', marginBottom: '16px', fontSize: '12px', color: '#9ca3af' }}>
               <p style={{ marginBottom: '6px' }}><strong style={{ color: '#fff' }}>Status do Lote:</strong> {selectedAiItem.status.toUpperCase()}</p>
               <p style={{ marginBottom: '6px' }}><strong style={{ color: '#fff' }}>Preço Atual:</strong> R$ {selectedAiItem.price.toFixed(2)}</p>
@@ -412,18 +262,13 @@ export default function App() {
                 }
               </p>
             </div>
-
-            <button 
-              onClick={() => setSelectedAiItem(null)}
-              style={{ ...btnStyle, backgroundColor: '#10b981', color: '#090d16', width: '100%' }}
-            >
+            <button onClick={() => setSelectedAiItem(null)} style={{ ...btnStyle, backgroundColor: '#10b981', color: '#090d16', width: '100%' }}>
               Aplicar Sugestão
             </button>
           </div>
         </div>
       )}
 
-      {/* Footer */}
       <footer style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#4b5563', borderTop: '1px solid #1f293d', backgroundColor: '#0d1320' }}>
         EstoqueInteligente PRO • Tecnologia de Alta Performance para Supermercados
       </footer>
@@ -432,42 +277,12 @@ export default function App() {
   );
 }
 
-// Estilos Auxiliares
-const inputStyle: React.CSSProperties = {
-  backgroundColor: '#090d16',
-  border: '1px solid #1f293d',
-  borderRadius: '6px',
-  padding: '10px',
-  color: '#ffffff',
-  fontSize: '12px',
-  outline: 'none',
-  width: '100%'
-};
-
-const btnStyle: React.CSSProperties = {
-  border: 'none',
-  borderRadius: '6px',
-  padding: '10px',
-  fontWeight: 'bold',
-  fontSize: '12px',
-  cursor: 'pointer'
-};
+const inputStyle: React.CSSProperties = { backgroundColor: '#090d16', border: '1px solid #1f293d', borderRadius: '6px', padding: '10px', color: '#ffffff', fontSize: '12px', outline: 'none', width: '100%' };
+const btnStyle: React.CSSProperties = { border: 'none', borderRadius: '6px', padding: '10px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' };
 
 function FilterButton({ active, onClick, label, color }: { active: boolean; onClick: () => void; label: string; color: string }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        backgroundColor: active ? `${color}20` : '#090d16',
-        color: active ? color : '#9ca3af',
-        border: `1px solid ${active ? color : '#1f293d'}`,
-        borderRadius: '6px',
-        padding: '4px 10px',
-        fontSize: '11px',
-        fontWeight: 'bold',
-        cursor: 'pointer'
-      }}
-    >
+    <button onClick={onClick} style={{ backgroundColor: active ? `${color}20` : '#090d16', color: active ? color : '#9ca3af', border: `1px solid ${active ? color : '#1f293d'}`, borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
       {label}
     </button>
   );
@@ -475,16 +290,7 @@ function FilterButton({ active, onClick, label, color }: { active: boolean; onCl
 
 function KpiCard({ title, value, icon, border, detail }: { title: string; value: string; icon: string; border: string; detail: string }) {
   return (
-    <div style={{
-      backgroundColor: '#111726',
-      padding: '14px',
-      borderRadius: '10px',
-      border: '1px solid #1f293d',
-      borderLeft: `4px solid ${border}`,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between'
-    }}>
+    <div style={{ backgroundColor: '#111726', padding: '14px', borderRadius: '10px', border: '1px solid #1f293d', borderLeft: `4px solid ${border}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <span style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>{title}</span>
         <span style={{ fontSize: '16px' }}>{icon}</span>
