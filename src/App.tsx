@@ -50,7 +50,6 @@ export default function EstoqueInteligenteApp() {
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [abaAtiva, setAbaAtiva] = useState<'estoque' | 'perdas'>('estoque');
 
-  // Estados do Modal Novo Item
   const [novoId, setNovoId] = useState('');
   const [novoNome, setNovoNome] = useState('');
   const [novoCat, setNovoCat] = useState('Mercearia');
@@ -60,7 +59,6 @@ export default function EstoqueInteligenteApp() {
   const [novoCusto, setNovoCusto] = useState('');
   const [novoPreco, setNovoPreco] = useState('');
 
-  // Estado da Câmara / Leitor de Código de Barras
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -71,36 +69,6 @@ export default function EstoqueInteligenteApp() {
   useEffect(() => {
     localStorage.setItem('estoque_inteligente_perdas', JSON.stringify(perdas));
   }, [perdas]);
-
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (cameraAtiva) {
-      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
-        .then((s) => {
-          stream = s;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play();
-          }
-        })
-        .catch((err) => {
-          alert("Não foi possível aceder à câmara: " + err.message);
-          setCameraAtiva(false);
-        });
-    }
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [cameraAtiva]);
-
-  const capturarCodigoBarrasCamera = () => {
-    const codigoSimulado = '789' + Math.floor(100000000 + Math.random() * 900000000);
-    setNovoId(codigoSimulado);
-    setCameraAtiva(false);
-    alert(`📷 Código de Barras escaneado com sucesso: ${codigoSimulado}`);
-  };
 
   const darBaixaRapidaVenda = (item: ItemEstoque) => {
     const qtdVendidaStr = prompt(`Quantas unidades de "${item.nome}" foram vendidas/retiradas?`, "1");
@@ -180,17 +148,6 @@ export default function EstoqueInteligenteApp() {
     }
   };
 
-  const carregarDadosExemplo = () => {
-    setItens([
-      { id: '7891000101', nome: 'Leite UHT Integral 1L', categoria: 'Laticínios', estoque: 45, min: 100, validade: '2026-11-10', preco: 5.90, custo: 4.50 },
-      { id: '7891000102', nome: 'Arroz Tipo 1 5kg', categoria: 'Mercearia', estoque: 12, min: 50, validade: '2027-05-15', preco: 32.90, custo: 24.90 },
-      { id: '7891000103', nome: 'Presunto Fatiado 200g', categoria: 'Frios & Embutidos', estoque: 15, min: 20, validade: '2026-11-15', preco: 11.90, custo: 8.90 },
-      { id: '7891000104', nome: 'Cerveja Pilsen 350ml', categoria: 'Bebidas', estoque: 210, min: 80, validade: '2027-02-28', preco: 4.50, custo: 3.50 },
-      { id: '7891000105', nome: 'Detergente Líquido 500ml', categoria: 'Limpeza', estoque: 88, min: 30, validade: '2028-01-10', preco: 3.00, custo: 2.20 },
-      { id: '7891000106', nome: 'Iogurte Natural 170g', categoria: 'Laticínios', estoque: 8, min: 40, validade: '2026-11-08', preco: 3.50, custo: 2.50 },
-    ]);
-  };
-
   const registrarPerda = (item: ItemEstoque) => {
     const qtdDescarte = prompt(`Quantas unidades de "${item.nome}" deseja descartar por perda/vencimento?`, "1");
     if (!qtdDescarte) return;
@@ -213,7 +170,7 @@ export default function EstoqueInteligenteApp() {
 
     setPerdas([novaPerda, ...perdas]);
     setItens(itens.map(i => i.id === item.id ? { ...i, estoque: i.estoque - q } : i));
-    alert(`⚠️ Descarte registrado! Prejuízo calculated: R$ ${prejuizoTotal.toFixed(2)}`);
+    alert(`⚠️ Descarte registrado! Prejuízo: R$ ${prejuizoTotal.toFixed(2)}`);
   };
 
   const dispararWhatsApp = (item: ItemEstoque) => {
@@ -272,8 +229,6 @@ export default function EstoqueInteligenteApp() {
   });
 
   const totalPrejuizoPerdas = perdas.reduce((acc, p) => acc + p.prejuizo, 0);
-
-  // Cálculos do Dashboard Financeiro
   const valorTotalInvestido = itens.reduce((acc, item) => acc + (item.estoque * (item.custo || (item.preco * 0.7))), 0);
   const valorTotalImobilizadoVenda = itens.reduce((acc, item) => acc + (item.estoque * item.preco), 0);
   const lucroPotencialCalculado = valorTotalImobilizadoVenda - valorTotalInvestido;
@@ -298,28 +253,24 @@ export default function EstoqueInteligenteApp() {
 
         {abaAtiva === 'estoque' && (
           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-            <button onClick={carregarDadosExemplo} style={{ flex: 1, backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', padding: '8px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-              ⚡ Demo
-            </button>
-            <button onClick={() => setModalAberto(true)} style={{ flex: 1, backgroundColor: '#34d399', color: '#030712', border: 'none', fontWeight: 'bold', padding: '8px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
+            <button onClick={() => setModalAberto(true)} style={{ width: '100%', backgroundColor: '#34d399', color: '#030712', border: 'none', fontWeight: 'bold', padding: '8px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
               + Novo Item
             </button>
           </div>
         )}
       </div>
 
-      {/* DASHBOARD FINANCEIRO */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>ESTOQUE CUSTO</div>
+          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>ESTQ CUSTO</div>
           <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#f8fafc', fontFamily: 'monospace' }}>R$ {valorTotalInvestido.toFixed(2)}</div>
         </div>
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>LUCRO PROJETADO</div>
+          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>LUCRO PROJ.</div>
           <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#34d399', fontFamily: 'monospace' }}>R$ {lucroPotencialCalculado.toFixed(2)}</div>
         </div>
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>TOTAL PERDAS</div>
+          <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>PERDAS</div>
           <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#f87171', fontFamily: 'monospace' }}>R$ {totalPrejuizoPerdas.toFixed(2)}</div>
         </div>
       </div>
@@ -328,13 +279,13 @@ export default function EstoqueInteligenteApp() {
         <>
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399', marginTop: 0, marginBottom: '8px' }}>
-              ⚡ Importador NF-e (Entrada Livre)
+              ⚡ Importador NF-e
             </h2>
             <textarea 
               value={xmlInput}
               onChange={(e) => setXmlInput(e.target.value)}
               placeholder="Cole o XML completo da NF-e aqui..."
-              style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#e2e8f0', fontSize: '12px', height: '55px', resize: 'none', marginBottom: '8px', boxSizing: 'border-box' }}
+              style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#e2e8f0', fontSize: '12px', height: '50px', resize: 'none', marginBottom: '8px', boxSizing: 'border-box' }}
             />
             <button 
               onClick={processarEntradaXML}
@@ -350,61 +301,21 @@ export default function EstoqueInteligenteApp() {
                 type="text" 
                 value={busca} 
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="🔍 Pesquisar produto ou código..."
+                placeholder="🔍 Pesquisar produto..."
                 style={{ flex: 1, backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '11px', boxSizing: 'border-box' }}
               />
-              <select 
-                value={catFiltro} 
-                onChange={(e) => setCatFiltro(e.target.value)}
-                style={{ backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '11px', boxSizing: 'border-box' }}
-              >
-                <option value="Todas">Todas Categorias</option>
-                <option value="Mercearia">Mercearia</option>
-                <option value="Laticínios">Laticínios</option>
-                <option value="Frios & Embutidos">Frios & Embutidos</option>
-                <option value="Bebidas">Bebidas</option>
-                <option value="Limpeza">Limpeza</option>
-                <option value="Importados NF-e">Importados NF-e</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-              {['Todos', 'Críticos', 'Alertas', 'Estáveis'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setFiltroAtivo(tab)}
-                  style={{
-                    padding: '5px 10px',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: filtroAtivo === tab ? 'bold' : 'normal',
-                    backgroundColor: filtroAtivo === tab ? '#34d399' : '#1e293b',
-                    color: filtroAtivo === tab ? '#030712' : '#94a3b8',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {tab}
-                </button>
-              ))}
             </div>
           </div>
 
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h2 style={{ fontSize: '12px', fontWeight: 'bold', color: '#e2e8f0', margin: 0 }}>📋 Gestão Preditiva & Ações</h2>
-              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{itensFiltrados.length} itens</span>
-            </div>
-
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e293b', color: '#94a3b8', fontSize: '10px' }}>
-                    <th style={{ paddingBottom: '8px', width: '30%' }}>PRODUTO</th>
+                    <th style={{ paddingBottom: '8px', width: '35%' }}>PRODUTO</th>
                     <th style={{ paddingBottom: '8px', width: '15%' }}>ESTQ</th>
                     <th style={{ paddingBottom: '8px', width: '20%' }}>VALIDADE</th>
-                    <th style={{ paddingBottom: '8px', width: '35%', textAlign: 'right' }}>AÇÕES</th>
+                    <th style={{ paddingBottom: '8px', width: '30%', textAlign: 'right' }}>AÇÕES</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -425,27 +336,24 @@ export default function EstoqueInteligenteApp() {
                         <td style={{ padding: '10px 0', fontFamily: 'monospace', color: isCritico ? '#f87171' : '#fbbf24', fontSize: '10px' }}>
                           {item.validade}
                         </td>
-                        <td style={{ padding: '10px 0', textAlign: 'right', display: 'flex', gap: '3px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                        <td style={{ padding: '10px 0', textAlign: 'right', display: 'flex', gap: '3px', justifyContent: 'flex-end' }}>
                           <button 
                             onClick={() => darBaixaRapidaVenda(item)}
-                            title="Dar Baixa em Vendas do Dia"
-                            style={{ backgroundColor: '#0284c722', color: '#38bdf8', border: '1px solid #0284c744', padding: '4px 5px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            style={{ backgroundColor: '#0284c722', color: '#38bdf8', border: '1px solid #0284c744', padding: '4px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
-                            📉 Saída
+                            📉 Baixa
                           </button>
                           {isCritico && (
                             <button 
                               onClick={() => dispararWhatsApp(item)}
-                              title="Enviar Oferta Relâmpago WhatsApp"
-                              style={{ backgroundColor: '#22c55e22', color: '#4ade80', border: '1px solid #22c55e44', padding: '4px 5px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
+                              style={{ backgroundColor: '#22c55e22', color: '#4ade80', border: '1px solid #22c55e44', padding: '4px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
                             >
                               📱 Wpp
                             </button>
                           )}
                           <button 
                             onClick={() => registrarPerda(item)}
-                            title="Registrar Perda / Descarte"
-                            style={{ backgroundColor: '#f8717122', color: '#f87171', border: '1px solid #f8717144', padding: '4px 5px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
+                            style={{ backgroundColor: '#f8717122', color: '#f87171', border: '1px solid #f8717144', padding: '4px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
                             🗑️
                           </button>
@@ -460,205 +368,37 @@ export default function EstoqueInteligenteApp() {
         </>
       ) : (
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '12px', fontWeight: 'bold', color: '#f87171', margin: 0 }}>📉 Relatório de Perdas & Descarte</h2>
-            <span style={{ fontSize: '10px', color: '#f87171', fontWeight: 'bold' }}>Total: R$ {totalPrejuizoPerdas.toFixed(2)}</span>
-          </div>
-
+          <h2 style={{ fontSize: '12px', fontWeight: 'bold', color: '#f87171', marginTop: 0, marginBottom: '12px' }}>📉 Relatório de Perdas</h2>
           {perdas.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: '#64748b', fontSize: '11px' }}>
-              Nenhum descarte ou perda registrada até o momento.
-            </div>
+            <div style={{ textAlign: 'center', padding: '20px 0', color: '#64748b', fontSize: '11px' }}>Nenhum descarte registado.</div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #1e293b', color: '#94a3b8', fontSize: '10px' }}>
-                    <th style={{ paddingBottom: '8px' }}>PRODUTO</th>
-                    <th style={{ paddingBottom: '8px' }}>QTD</th>
-                    <th style={{ paddingBottom: '8px' }}>PREJUÍZO</th>
-                    <th style={{ paddingBottom: '8px', textAlign: 'right' }}>DATA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {perdas.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #1e293b33' }}>
-                      <td style={{ padding: '8px 0', color: '#f1f5f9', fontWeight: 'bold' }}>{p.nome}</td>
-                      <td style={{ padding: '8px 0', color: '#f87171' }}>-{p.quantidade} un</td>
-                      <td style={{ padding: '8px 0', fontFamily: 'monospace', color: '#f87171' }}>R$ {p.prejuizo.toFixed(2)}</td>
-                      <td style={{ padding: '8px 0', textAlign: 'right', fontSize: '10px', color: '#94a3b8' }}>{p.data}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            perdas.map((p) => (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b33', padding: '8px 0', fontSize: '11px' }}>
+                <span style={{ color: '#fff' }}>{p.nome} (-{p.quantidade})</span>
+                <span style={{ color: '#f87171', fontFamily: 'monospace' }}>R$ {p.prejuizo.toFixed(2)}</span>
+              </div>
+            ))
           )}
         </div>
       )}
 
       {modalAberto && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(3, 7, 18, 0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', zIndex: 50 }}>
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '16px', padding: '20px', width: '100%', maxWidth: '400px', boxSizing: 'border-box', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399', marginTop: 0, marginBottom: '12px' }}>
-              + Cadastrar Novo Item
-            </h3>
-
-            {cameraAtiva && (
-              <div style={{ marginBottom: '12px', textAlign: 'center', backgroundColor: '#000', borderRadius: '8px', padding: '8px' }}>
-                <video ref={videoRef} style={{ width: '100%', maxHeight: '150px', objectFit: 'cover', borderRadius: '6px' }} muted playsInline />
-                <p style={{ fontSize: '10px', color: '#34d399', margin: '4px 0' }}>Aponte para o Código de Barras...</p>
-                <button 
-                  type="button" 
-                  onClick={capturarCodigoBarrasCamera}
-                  style={{ backgroundColor: '#34d399', color: '#030712', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', marginRight: '6px' }}
-                >
-                  📸 Capturar Código
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setCameraAtiva(false)}
-                  style={{ backgroundColor: '#1e293b', color: '#f87171', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  Fechar Câmara
-                </button>
-              </div>
-            )}
-            
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '16px', padding: '20px', width: '100%', maxWidth: '400px', boxSizing: 'border-box' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399', marginTop: 0, marginBottom: '12px' }}>+ Novo Item</h3>
             <form onSubmit={handleSalvarNovoItem} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div>
-                <label style={{ fontSize: '10px', color: '#94a3b8' }}>Código de Barras / GTIN</label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input 
-                    type="text" 
-                    value={novoId} 
-                    onChange={(e) => setNovoId(e.target.value)} 
-                    placeholder="Ex: 7891000..."
-                    style={{ flex: 1, backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                  />
-                  {!cameraAtiva && (
-                    <button 
-                      type="button" 
-                      onClick={() => setCameraAtiva(true)}
-                      style={{ backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d39944', padding: '8px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      📷 Ler
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '10px', color: '#94a3b8' }}>Nome do Produto *</label>
-                <input 
-                  type="text" 
-                  value={novoNome} 
-                  onChange={(e) => setNovoNome(e.target.value)} 
-                  placeholder="Ex: Queijo Mozarela 1kg"
-                  style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                  required 
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '10px', color: '#94a3b8' }}>Categoria</label>
-                <select 
-                  value={novoCat} 
-                  onChange={(e) => setNovoCat(e.target.value)}
-                  style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                >
-                  <option value="Mercearia">Mercearia</option>
-                  <option value="Laticínios">Laticínios</option>
-                  <option value="Frios & Embutidos">Frios & Embutidos</option>
-                  <option value="Bebidas">Bebidas</option>
-                  <option value="Limpeza">Limpeza</option>
-                  <option value="Hortifrúti">Hortifrúti</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '10px', color: '#94a3b8' }}>Qtd Estoque *</label>
-                  <input 
-                    type="number" 
-                    value={novoEstoque} 
-                    onChange={(e) => setNovoEstoque(e.target.value)} 
-                    placeholder="Ex: 30"
-                    style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                    required 
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '10px', color: '#94a3b8' }}>Estoque Mín.</label>
-                  <input 
-                    type="number" 
-                    value={novoMin} 
-                    onChange={(e) => setNovoMin(e.target.value)} 
-                    placeholder="Ex: 10"
-                    style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '10px', color: '#94a3b8' }}>Preço Custo (R$)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={novoCusto} 
-                    onChange={(e) => setNovoCusto(e.target.value)} 
-                    placeholder="Opcional"
-                    style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '10px', color: '#34d399' }}>Preço Venda (R$) *</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={novoPreco} 
-                    onChange={(e) => setNovoPreco(e.target.value)} 
-                    placeholder="Ex: 14.90"
-                    style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#34d399', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}
-                    required 
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '10px', color: '#94a3b8' }}>Data Validade *</label>
-                <input 
-                  type="date" 
-                  value={novoValidade} 
-                  onChange={(e) => setNovoValidade(e.target.value)}
-                  style={{ width: '100%', backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                  required 
-                />
-              </div>
-
+              <input type="text" value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome do Produto *" style={{ backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px' }} required />
+              <input type="number" value={novoEstoque} onChange={(e) => setNovoEstoque(e.target.value)} placeholder="Qtd Estoque *" style={{ backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px' }} required />
+              <input type="number" step="0.01" value={novoPreco} onChange={(e) => setNovoPreco(e.target.value)} placeholder="Preço Venda (R$) *" style={{ backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px' }} required />
+              <input type="date" value={novoValidade} onChange={(e) => setNovoValidade(e.target.value)} style={{ backgroundColor: '#030712', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px' }} required />
               <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setModalAberto(false)}
-                  style={{ flex: 1, backgroundColor: '#1e293b', color: '#cbd5e1', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  style={{ flex: 1, backgroundColor: '#34d399', color: '#030712', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  Salvar Item
-                </button>
+                <button type="button" onClick={() => setModalAberto(false)} style={{ flex: 1, backgroundColor: '#1e293b', color: '#cbd5e1', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, backgroundColor: '#34d399', color: '#030712', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Salvar</button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '9px', color: '#475569' }}>
-        EstoqueInteligente PRO • Tecnologia de Alta Performance para Supermercados
-      </div>
     </div>
   );
 }
